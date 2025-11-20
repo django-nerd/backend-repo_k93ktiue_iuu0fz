@@ -20,6 +20,38 @@ def read_root():
 def hello():
     return {"message": "Hello from the backend API!"}
 
+@app.get("/health")
+def health():
+    """Lightweight health check for uptime monitoring."""
+    # Basic status object
+    status = {
+        "status": "ok",
+        "service": "backend",
+        "version": os.getenv("APP_VERSION", "dev"),
+        "env": os.getenv("ENV", "development"),
+        "database": {
+            "configured": False,
+            "connected": False
+        }
+    }
+
+    # Soft-detect database configuration/connectivity
+    try:
+        from database import db
+        status["database"]["configured"] = bool(os.getenv("DATABASE_URL") and os.getenv("DATABASE_NAME"))
+        if db is not None:
+            # Attempt a no-op command to verify connectivity
+            try:
+                _ = db.list_collection_names()
+                status["database"]["connected"] = True
+            except Exception:
+                status["database"]["connected"] = False
+    except Exception:
+        # database module missing or other error should not fail health
+        pass
+
+    return status
+
 @app.get("/test")
 def test_database():
     """Test endpoint to check if database is available and accessible"""
